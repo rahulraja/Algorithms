@@ -8,6 +8,7 @@ public class SuffixTree2 {
     public static void main(String[] args){
         SuffixTree2 st2 = new SuffixTree2("xyzxy".toCharArray());
         st2.build();
+        st2.dfsTraversal();
     }
     
     private static char[] input;

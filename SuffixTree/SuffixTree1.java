@@ -4,10 +4,11 @@ import java.util.ArrayList;
  * @author 1305309
  * For simple non-repeating characters String of kind "xyz"
  */
-public class SuffixTree2 {
+public class SuffixTree1 {
     public static void main(String[] args){
-        SuffixTree1 st2 = new SuffixTree2("xyz".toCharArray());
+        SuffixTree1 st1 = new SuffixTree1("xyz".toCharArray());
         st1.build();
+        st1.dfsTraversal();
     }
     
     private static char[] input;
