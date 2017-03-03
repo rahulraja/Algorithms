@@ -1,0 +1,270 @@
+import java.util.ArrayList;
+/**
+ *
+ * @author 1305309
+ * For any kind of string
+ */
+public class SuffixTree1 {
+    public static void main(String[] args){
+        SuffixTree1 st1 = new SuffixTree1("mississi".toCharArray());
+        st1.build();
+        st1.dfsTraversal();
+    }
+    
+    private static char[] input;
+    private int remainingSuffixCount = 0;
+    private End end;
+    private SuffixNode root;
+    private Active active;
+    
+    
+    SuffixTree1(char[] in){
+        input = new char[in.length + 1];
+        int i;
+        for(i = 0;i < in.length;i++)
+            input[i] = in[i];
+        input[i] = '$';
+    }
+    
+    class End{
+        int e;
+        End(int value){
+            e = value;
+        }
+    }
+    
+    static class SuffixNode{
+      SuffixNode suffixLink;
+      SuffixNode child[] = new SuffixNode[256];
+      
+      int start;
+      End end;
+      int index;
+      
+      private SuffixNode(){
+          
+      }
+      
+      public static SuffixNode createNode(int st,End en){
+          SuffixNode node = new SuffixNode();
+          node.start = st;
+          node.end = en;
+          return node;
+      }
+      
+    }
+    
+    class Active{
+        SuffixNode activeNode;
+        int activeEdge;
+        int activeLength;
+        
+        Active(SuffixNode node){
+            activeNode = node;      //just referring
+            activeEdge = -1;
+            activeLength = 0;
+        }
+    }
+    ///////////////////////////////////////////////////////////////////////////////
+    
+    public void build(){
+        root = SuffixNode.createNode(1,new End(0));
+        root.index = -1;
+        active = new Active(root);
+        
+        end = new End(-1);          //Global End
+        
+        for(int i = 0;i < input.length;i++)
+            startPhase(i);
+        
+        setIndexUsingDfs(root,0,input.length);
+    }
+    
+    ////////////////////////////////////////////////////////////////////////////////
+    
+    public void startPhase(int i){
+        remainingSuffixCount++;   end.e++;  SuffixNode lastCreatedInternalNode = null;
+        while(remainingSuffixCount > 0){
+            //looking directly from root or from any internal node
+            if(active.activeLength == 0){
+                //check if that character already exist..and take corresponding action
+                if(selectNode(i) != null){
+                    active.activeLength = 1;
+                    active.activeEdge = selectNode(i).start;
+                    break;
+                }
+                else{
+                    root.child[input[i]] = SuffixNode.createNode(i, end);
+                    remainingSuffixCount--;
+                }
+            }
+            
+            
+            //else if active length is not 0 means we are somwhere in between ,so check if next character is same or not
+            //and take corresponding action
+            else{
+                try{
+                    //if next character from current active point is same as current input character then simply do a walkdown
+                    char ch = nextChar(i);
+                    if(ch == input[i]){
+                    
+                       //walk down and update active point if required
+                       if(lastCreatedInternalNode != null)
+                           lastCreatedInternalNode.suffixLink = selectNode();
+                       walkDown(i);
+                       break;
+                    }
+                    
+                    //if character doesn't matches create new internal node 
+                    else{
+                        SuffixNode node = selectNode();
+                        int oldStart = node.start;
+                        node.start = oldStart + active.activeLength;
+                        //create new internal node
+                        SuffixNode newInternalNode = SuffixNode.createNode(oldStart, new End(oldStart + active.activeLength - 1));
+                        //create new leaf node
+                        SuffixNode newLeafNode = SuffixNode.createNode(i, this.end);
+                        //set internal node child as new leaf node and old node
+                        
+                        newInternalNode.child[input[oldStart + active.activeLength]] = node;
+                        newInternalNode.child[input[i]] = newLeafNode;
+                        newInternalNode.index = -1;
+                        active.activeNode.child[input[newInternalNode.start]] = newInternalNode;
+                        
+                        if(lastCreatedInternalNode != null)
+                            lastCreatedInternalNode.suffixLink = newInternalNode;
+                        
+                        lastCreatedInternalNode = newInternalNode;
+                        lastCreatedInternalNode.suffixLink = root;
+                        
+                        if(active.activeNode != root){
+                            active.activeNode = active.activeNode.suffixLink;
+                        }
+                        else{
+                            active.activeEdge++;
+                            active.activeLength--;
+                        }
+                        
+                        remainingSuffixCount--;
+                    }
+                }
+                catch(EndOfPathException e){
+                    //need to be handled when nextChar() throws Exception
+                    //Here we only need to create leaf node
+                    SuffixNode node = selectNode();
+                    node.child[input[i]] = SuffixNode.createNode(i, end);
+                    if(lastCreatedInternalNode != null)
+                        lastCreatedInternalNode.suffixLink = node;
+                    lastCreatedInternalNode = node;
+                    
+                    if(active.activeNode != root)
+                        active.activeNode = active.activeNode.suffixLink;
+                    else
+                    {
+                        active.activeEdge++;
+                        active.activeLength--;
+                    }
+                    remainingSuffixCount--;
+                }
+
+                    
+            }
+        }
+        
+    }
+    
+    private void walkDown(int i)  {
+        SuffixNode node = selectNode();
+        if(diff(node) < active.activeLength){
+            active.activeNode = node;
+            active.activeLength = active.activeLength - diff(node) - 1;
+            active.activeEdge = active.activeEdge + diff(node) + 1;
+        }
+        else{
+            active.activeLength++;
+        }
+    }
+    
+    private char nextChar(int i) throws EndOfPathException {
+        SuffixNode node = selectNode();
+        if(diff(node) >= active.activeLength){
+            return input[active.activeNode.child[input[active.activeEdge]].start + active.activeLength];
+        }
+        
+        //need to be checked for other cases
+        if((diff(node) + 1) == active.activeLength){
+            if(node.child[input[i]] != null)
+                return input[i];
+           
+        }
+        
+        else{
+            active.activeNode = node;
+            active.activeEdge = active.activeEdge + diff(node) + 1;
+            active.activeLength = active.activeLength - diff(node) - 1;
+            return nextChar(i);
+        }
+         
+        throw new EndOfPathException();
+    }
+    
+    private static class EndOfPathException extends Exception{
+    
+    }
+    
+    private int diff(SuffixNode node){
+        return node.end.e - node.start;
+    }
+    
+    private SuffixNode selectNode(){
+        return active.activeNode.child[input[active.activeEdge]];
+    }
+    
+    private SuffixNode selectNode(int i){
+        return active.activeNode.child[input[i]];
+    }
+    
+    private void setIndexUsingDfs(SuffixNode root,int val,int size){
+        if(root == null)
+            return;
+        
+        val += root.end.e - root.start + 1;
+        if(root.index != -1){
+            root.index = size - val;
+            return;
+        }
+        
+        for(SuffixNode node : root.child)
+            setIndexUsingDfs(node,val,size);
+        
+        
+    }
+    
+    public void dfsTraversal(){
+        ArrayList<Character> result = new ArrayList();
+        for(SuffixNode node : root.child)
+            dfsTraversal(node,result);
+    }
+    
+    public void dfsTraversal(SuffixNode root,ArrayList al){
+        if(root == null)
+            return;
+        
+        if (root.index != -1) {
+            for (int i = root.start; i <= root.end.e; i++)
+                al.add(input[i]);
+            al.stream().forEach(System.out::print);
+            System.out.println(" " + root.index);
+            for (int i = root.start; i <= root.end.e; i++) 
+                al.remove(al.size() - 1);
+        }
+        for(int i = root.start;i <= root.end.e;i++)
+            al.add(input[i]);
+        
+        for(SuffixNode node : root.child)
+            dfsTraversal(node,al);
+        
+        for(int i = root.start;i <= root.end.e;i++)
+            al.remove(al.size() - 1);
+    }
+}
